@@ -5,10 +5,10 @@ import pdfplumber
 from datetime import datetime
 import unicodedata
 
-# ===== Config =====
+
 caminho_pasta = 'Banco de talentos - SOLIDES'
 
-# ===== Planilha =====
+
 wb = Workbook()
 aba = wb.active
 aba.title = 'Informacoes_curriculos'
@@ -19,7 +19,7 @@ aba['B1'] = 'Cidade'
 def corrige_acentos(txt: str) -> str:
     if not txt:
         return ""
-    # tenta consertar PDFs com encoding latin1->utf8 bugado
+   
     try:
         return txt.encode('latin1').decode('utf-8')
     except Exception:
@@ -35,11 +35,11 @@ def is_city_line(s: str) -> bool:
     s2 = s.strip()
     if not s2:
         return False
-    if re.search(r'\d', s2):                       # linhas com número (ex: "12345", "CEP")
+    if re.search(r'\d', s2):                       
         return True
     if re.search(r'^\s*Cidade\s*[:\-]?', s2, flags=re.IGNORECASE):
         return True
-    if re.search(r'\b-\s*[A-Z]{2}\b', s2):         # "Catarina - CE"
+    if re.search(r'\b-\s*[A-Z]{2}\b', s2):         
         return True
     return False
 
@@ -65,7 +65,7 @@ def looks_like_name(s: str) -> bool:
     if re.search(r'\d', s2):
         return False
     parts = [p for p in re.split(r'\s+', s2) if p]
-    # 2–6 palavras com letras/acentos/hífens/ponto
+  
     if not (2 <= len(parts) <= 6):
         return False
     return all(re.fullmatch(r"[A-Za-zÀ-ÿ'´`^~\-\.]+", p) for p in parts)
@@ -81,7 +81,7 @@ def extrair_nome_fallback_arquivo(nome_arquivo: str):
     return None
 
 def pick_name_from_first_page(lines):
-    # escolhe a primeira linha válida entre as 8 primeiras
+    
     for l in lines[:8]:
         cand = l.strip()
         if not cand:
@@ -105,7 +105,7 @@ def extrair_cidade_pg1(lines):
             cand = lines[idx].strip()
             if not cand:
                 continue
-            # se tiver número, pula para a próxima
+            
             if re.search(r'\d', cand):
                 continue
             c = limpar_cidade(cand)
@@ -113,20 +113,19 @@ def extrair_cidade_pg1(lines):
                 return c
     return "Erro!"
 
-# ===== Processamento =====
+
 arquivos = [f for f in os.listdir(caminho_pasta) if f.lower().endswith('.pdf')]
 linha_xlsx = 2
 
 for arquivo in arquivos:
     caminho_arquivo = os.path.join(caminho_pasta, arquivo)
     with pdfplumber.open(caminho_arquivo) as pdf:
-        # 1ª página
+       
         pg1 = pdf.pages[0]
         txt_pg1 = corrige_acentos(pg1.extract_text() or "")
         linhas_pg1 = [corrige_acentos(x) for x in txt_pg1.split("\n")]
 
-        # --- NOME ---
-        # (1) tenta "Nome:" em TODO o documento
+       
         texto_full = ""
         for p in pdf.pages:
             texto_full += corrige_acentos(p.extract_text() or "") + "\n"
@@ -134,22 +133,21 @@ for arquivo in arquivos:
         if m:
             nome = m.group(2).strip()
         else:
-            # (2) escolhe a primeira linha válida do topo da 1ª página (evita cidade/idade/contato)
+           
             nome = pick_name_from_first_page(linhas_pg1)
-            # (3) fallback final: nome do arquivo
+            
             if not nome:
                 nome = extrair_nome_fallback_arquivo(arquivo) or "Erro!"
 
-        # --- CIDADE ---
+      
         cidade = extrair_cidade_pg1(linhas_pg1)
 
-        # escreve na planilha
+      
         aba[f"A{linha_xlsx}"] = nome
         aba[f"B{linha_xlsx}"] = cidade
         linha_xlsx += 1
 
-# ===== Salvar =====
 agora = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 saida = f'Informacoes_{agora}.xlsx'
 wb.save(saida)
-print(f"Extração concluída com sucesso! Arquivo: {saida} ❤️🚀")
+print(f"Extração concluída com sucesso! Arquivo: {saida} ")
